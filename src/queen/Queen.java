@@ -2,6 +2,7 @@ package queen;
 
 import commons.DFAConstants;
 import jade.core.Agent;
+import jade.core.behaviours.Behaviour;
 import jade.domain.DFService;
 import jade.domain.FIPAException;
 import jade.domain.FIPAAgentManagement.DFAgentDescription;
@@ -10,6 +11,8 @@ import jade.domain.FIPAAgentManagement.ServiceDescription;
 public class Queen extends Agent{
 
   private static final long serialVersionUID = 2365835675346077157L;
+  
+  private int MAX_SPERM = 15;
   
   private int spermatheca;
   
@@ -30,19 +33,69 @@ public class Queen extends Agent{
     } catch (FIPAException e) {
       e.printStackTrace();
     }
+    
+    addBehaviour(new SpermGatheringBehaviour());
   }
 
   @Override
   protected void takeDown() {
-    // Deregister from DF
-    try {
-      DFService.deregister(this);
-    } catch (FIPAException e) {
-      e.printStackTrace();
-    }
     
-    System.out.println("Queen"  + getAID().getLocalName() + " dead");
+    System.out.println("Queen"  + getLocalName() + " dead");
     
     // TODO: announce need for new queen?
   }
+  
+  /*
+  protected int getMaxSperm() {
+    return MAX_SPERM;
+  }
+  
+  protected int getSperm() {
+    return spermatheca;
+  }
+  
+  protected void increaseSperm() {
+    ++spermatheca;
+  }
+  
+  protected void decreaseSperm() {
+    --spermatheca;
+  }
+  */
+  
+  private class SpermGatheringBehaviour extends Behaviour {
+
+    private static final long serialVersionUID = -744558547993671025L;
+    
+    private int step = 0;
+
+    @Override
+    public void action() {
+      switch(step) {
+        case 0:
+          //Accept mating requests
+          
+      }
+    }
+
+    @Override
+    public boolean done() {
+      return ((Queen)myAgent).spermatheca == MAX_SPERM;
+    }
+    
+    @Override
+    public int onEnd() {
+      // Deregister from DF (mating)
+      try {
+        DFService.deregister(myAgent);
+      } catch (FIPAException e) {
+        e.printStackTrace();
+      }
+      
+      // TODO: add next behaviour
+      return 0;
+    }
+
+  }
+
 }
