@@ -7,6 +7,8 @@ import jade.domain.DFService;
 import jade.domain.FIPAException;
 import jade.domain.FIPAAgentManagement.DFAgentDescription;
 import jade.domain.FIPAAgentManagement.ServiceDescription;
+import jade.lang.acl.ACLMessage;
+import jade.lang.acl.MessageTemplate;
 
 public class Queen extends Agent{
 
@@ -40,7 +42,7 @@ public class Queen extends Agent{
   @Override
   protected void takeDown() {
     
-    System.out.println("Queen"  + getLocalName() + " dead");
+    System.out.println("Queen "  + getLocalName() + " dead");
     
     // TODO: announce need for new queen?
   }
@@ -74,7 +76,20 @@ public class Queen extends Agent{
       switch(step) {
         case 0:
           //Accept mating requests
-          
+          MessageTemplate mt = MessageTemplate.MatchConversationId(DFAConstants.MATING_REQUEST);
+          ACLMessage proposal = myAgent.receive(mt);
+          if(proposal != null) {
+            if(proposal.getPerformative() == ACLMessage.REQUEST) {
+              ACLMessage reply = proposal.createReply();
+              reply.setPerformative(ACLMessage.INFORM);
+              reply.setContent(myAgent.getLocalName());
+              myAgent.send(reply);
+              ((Queen)myAgent).spermatheca = ((Queen)myAgent).spermatheca +1;
+            }
+          }
+          else {
+            block();
+          }
       }
     }
 
@@ -92,7 +107,8 @@ public class Queen extends Agent{
         e.printStackTrace();
       }
       
-      // TODO: add next behaviour
+      System.out.println("Queen " + myAgent.getLocalName() + " is done with mating");
+      myAgent.addBehaviour(new EggLayingBehaviour());
       return 0;
     }
 
