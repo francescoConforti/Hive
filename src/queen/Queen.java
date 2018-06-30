@@ -26,6 +26,7 @@ public class Queen extends Agent{
     spermatheca = 0;
     System.out.println("Queen " + getAID().getLocalName() + " ready");
     addBehaviour(new SpermGatheringBehaviour(this));
+    // TODO: kill queen behaviour?
   }
 
   @Override

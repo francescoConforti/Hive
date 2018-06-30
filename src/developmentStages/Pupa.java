@@ -1,10 +1,14 @@
 package developmentStages;
 
-public class Egg implements DevelopingBee{
+public class Pupa implements DevelopingBee{
 
-  private final int MAX_AGE = 3;
+  private final int MAX_AGE;
   
-  private int age = 0;
+  private int age;
+  
+  public Pupa(int maxAge) {
+    MAX_AGE = maxAge;
+  }
   
   @Override
   public int getAge() {

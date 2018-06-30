@@ -19,31 +19,31 @@ public class HiveManager extends Agent{
   @Override
   protected void setup() {
     // Initialize hive structure
-    int maxNectar = 100, maxPollen = 100, maxCells = 100;
+    int maxFood = 100, maxMaterials = 100, maxCells = 100;
     Object[] args = getArguments();
     if(args != null) {
       if(args.length >= 1) {
-        maxNectar = (Integer)args[0];
+        maxFood = (Integer)args[0];
       }
       if(args.length >= 2) {
-        maxPollen = (Integer)args[1];
+        maxMaterials = (Integer)args[1];
       }
       if(args.length >= 3) {
         maxCells = (Integer)args[2];
       }
     }
-    hive = new Hive(maxNectar, maxPollen, maxCells);
+    hive = new Hive(maxFood, maxMaterials, maxCells);
     System.out.println("Hive initialized");
     
     addBehaviour(new EggReceiveBehaviour(this, DFAConstants.EGG_LAY_OR_RECEIVE_TIMER));
     // TODO
     //addBehaviour(new ResourceReceiveBehaviour());
-    //addBehaviour(new AgingBehaviour()); // For cell resident developement
+    addBehaviour(new AgingBehaviour(this, DFAConstants.DAY_IN_MILLIS)); // For cell resident developement
   }
 
   /*
    * This behaviour is used to receive eggs frome the queen and store
-   * the in the hive structure
+   * them in the hive structure
    */
   private class EggReceiveBehaviour extends TickerBehaviour{
 
@@ -84,7 +84,7 @@ public class HiveManager extends Agent{
               content = DFAConstants.DRONE_EGG;
             }
             if(proposal.getContent().equals(DFAConstants.QUEEN_EGG)) {
-              // TODO
+              // TODO: queen egg
             }
             ACLMessage reply = proposal.createReply();
             reply.setPerformative(ACLMessage.CONFIRM);
@@ -104,6 +104,25 @@ public class HiveManager extends Agent{
         block();
       }
       
+    }
+    
+  }
+
+  /**
+   *  This behaviour ages the eggs, larvae and pupas in the cells
+   *  and manages their developement
+   */
+  private class AgingBehaviour extends TickerBehaviour{
+
+    private static final long serialVersionUID = -3860859943421646102L;
+
+    public AgingBehaviour(Agent a, long period) {
+      super(a, period);
+    }
+
+    @Override
+    protected void onTick() {
+      ((HiveManager)myAgent).hive.updateCells();
     }
     
   }

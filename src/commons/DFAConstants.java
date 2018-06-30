@@ -16,4 +16,12 @@ public class DFAConstants {
   public final static String WORKER_EGG = "worker egg";
   public final static String DRONE_EGG = "drone egg";
   public final static String QUEEN_EGG = "queen egg";
+  
+  // Time
+  public final static int DAY_IN_MILLIS = 15000;
+  
+  // Larvae
+  public final static int WORKER_LARVA_DAILY_FOOD = 10;
+  public final static int DRONE_LARVA_DAILY_FOOD = 20;
+  public final static int QUEEN_LARVA_DAILY_FOOD = 25;
 }
