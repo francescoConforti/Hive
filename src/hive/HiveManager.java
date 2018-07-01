@@ -2,6 +2,7 @@ package hive;
 
 import commons.DFAConstants;
 import jade.core.Agent;
+import jade.core.behaviours.CyclicBehaviour;
 import jade.core.behaviours.TickerBehaviour;
 import jade.domain.DFService;
 import jade.domain.FIPAException;
@@ -35,12 +36,78 @@ public class HiveManager extends Agent{
     hive = new Hive(maxFood, maxMaterials, maxCells);
     System.out.println("Hive initialized");
     
+    // Advertise hive services in DF
+    DFAgentDescription dfd = new DFAgentDescription();
+    dfd.setName(getAID());
+    // Advertise hive ready to receive resources
+    ServiceDescription sd = new ServiceDescription();
+    sd.setType(DFAConstants.GATHERING);
+    sd.setName("Hive ready for resources");
+    dfd.addServices(sd);
+    // Advertise hive ready to receive eggs in DF
+    sd = new ServiceDescription();
+    sd.setType(DFAConstants.EGG);
+    sd.setName("Hive ready for eggs");
+    dfd.addServices(sd);
+    try {
+      DFService.register(this, dfd);
+    } catch (FIPAException e) {
+      e.printStackTrace();
+    }
+  
+    
     addBehaviour(new EggReceiveBehaviour(this, DFAConstants.EGG_LAY_OR_RECEIVE_TIMER));
-    // TODO
-    //addBehaviour(new ResourceReceiveBehaviour());
+    addBehaviour(new ResourceReceiveBehaviour());
     addBehaviour(new AgingBehaviour(this, DFAConstants.DAY_IN_MILLIS)); // For cell resident developement
   }
+  /*
+   * This behaviour receives resources from workers and sends them to the hive
+   */
+  private class ResourceReceiveBehaviour extends CyclicBehaviour{
 
+    private static final long serialVersionUID = -863596333338272115L;
+    
+    @Override
+    public void action() {
+      String content = "";
+      MessageTemplate mt = MessageTemplate.MatchConversationId(DFAConstants.RESOURCE_EXCHANGE);
+      ACLMessage proposal = myAgent.receive(mt);   
+      if(proposal != null) {
+        if(proposal.getPerformative() == ACLMessage.REQUEST) {
+          if(proposal.getContent().equals(DFAConstants.FOOD_EXCHANGE)) {
+            if(((HiveManager)myAgent).hive.canGetMoreFood()) {
+              ((HiveManager)myAgent).hive.increaseFood();
+              content = DFAConstants.FOOD_EXCHANGE;
+            }
+          }
+          else if(proposal.getContent().equals(DFAConstants.MATERIALS_EXCHANGE)) {
+            if(((HiveManager)myAgent).hive.canGetMoreMaterials()) {
+              ((HiveManager)myAgent).hive.increaseMaterials();
+              content = DFAConstants.MATERIALS_EXCHANGE;
+            }
+          }
+          ACLMessage reply = proposal.createReply();
+          reply.setPerformative(ACLMessage.CONFIRM);
+          reply.setContent(content);
+          myAgent.send(reply);
+        }
+        else {
+          // Communicate refusal
+          ACLMessage reply = proposal.createReply();
+          reply.setPerformative(ACLMessage.REFUSE);
+          reply.setContent(myAgent.getLocalName());
+          myAgent.send(reply);
+        }
+      }
+      else {
+        block();
+      }
+    }
+    
+    
+    
+  }
+  
   /*
    * This behaviour is used to receive eggs frome the queen and store
    * them in the hive structure
@@ -51,19 +118,6 @@ public class HiveManager extends Agent{
 
     public EggReceiveBehaviour(Agent a, long period) {
       super(a, period);
-      
-      // Advertise hive ready to receive eggs in DF
-      DFAgentDescription dfd = new DFAgentDescription();
-      dfd.setName(getAID());
-      ServiceDescription sd = new ServiceDescription();
-      sd.setType(DFAConstants.EGG);
-      sd.setName("Hive ready for eggs");
-      dfd.addServices(sd);
-      try {
-        DFService.register(myAgent, dfd);
-      } catch (FIPAException e) {
-        e.printStackTrace();
-      }
     }
 
     @Override

@@ -11,9 +11,9 @@ import developmentStages.Pupa;
 
 public class Hive {
   
-  private int MAX_NECTAR;
-  private int MAX_POLLEN;
-  private int MAX_CELLS;
+  private final int MAX_FOOD;
+  private final int MAX_MATERIALS;
+  private final int MAX_CELLS;
   
   private int food;
   private int materials;
@@ -21,9 +21,9 @@ public class Hive {
   private List<Cell> droneCells;
   private Cell queenCell;
   
-  public Hive(int maxNectar, int maxPollen, int maxCells) {
-    MAX_NECTAR = maxNectar;
-    MAX_POLLEN = maxPollen;
+  public Hive(int maxFood, int maxMaterials, int maxCells) {
+    MAX_FOOD = maxFood;
+    MAX_MATERIALS = maxMaterials;
     MAX_CELLS = maxCells;
     workerCells = new ArrayList<>();
     droneCells = new ArrayList<>();
@@ -31,15 +31,35 @@ public class Hive {
   }
   
   public int getMaxNectar() {
-    return MAX_NECTAR;
+    return MAX_FOOD;
   }
   
   public int getMaxPollen() {
-    return MAX_POLLEN;
+    return MAX_MATERIALS;
   }
   
   public int getMaxCells() {
     return MAX_CELLS;
+  }
+  
+  public boolean canGetMoreFood() {
+    return food < MAX_FOOD;
+  }
+  
+  public boolean canGetMoreMaterials() {
+    return materials < MAX_MATERIALS;
+  }
+  
+  public void increaseFood() {
+    ++food;
+  }
+  
+  public void increaseMaterials() {
+    ++materials;
+  }
+  
+  public boolean hasFreeCells() {
+    return workerCells.size() + droneCells.size() < MAX_CELLS;
   }
   
   public List<Cell> getDroneCells(){
@@ -48,10 +68,6 @@ public class Hive {
   
   public List<Cell> getWorkerCells(){
     return workerCells;
-  }
-  
-  public boolean hasFreeCells() {
-    return workerCells.size() + droneCells.size() < MAX_CELLS;
   }
   
   /*
