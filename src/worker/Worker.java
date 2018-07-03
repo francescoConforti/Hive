@@ -5,7 +5,6 @@ import java.util.Random;
 import commons.DFAConstants;
 import jade.core.AID;
 import jade.core.Agent;
-import jade.core.behaviours.CyclicBehaviour;
 import jade.core.behaviours.TickerBehaviour;
 import jade.domain.DFService;
 import jade.domain.FIPAException;
@@ -31,7 +30,7 @@ public class Worker extends Agent{
   protected void setup() {
     age = 0;
     addBehaviour(new AgingBehaviour(this, DFAConstants.DAY_IN_MILLIS));
-    addBehaviour(new GatheringBehaviour(this));
+    addBehaviour(new GatheringBehaviour(this, DFAConstants.GATHERING_TIMER));
   }
   
   // Periodically ages the bee
@@ -48,7 +47,7 @@ public class Worker extends Agent{
       ++(((Worker)myAgent).age);  // increase age
       if(((Worker)myAgent).age == ((Worker)myAgent).MAX_AGE) {
         myAgent.doDelete(); // Die when too old
-        System.out.println("Worker " + myAgent.getAID() + " dead");
+        System.out.println("Worker " + myAgent.getLocalName() + " dead");
       }
     }
     
@@ -57,7 +56,7 @@ public class Worker extends Agent{
   /*
    * Gather food or materials and store them in the hive
    */
-  private class GatheringBehaviour extends CyclicBehaviour{
+  private class GatheringBehaviour extends TickerBehaviour{
 
     private static final long serialVersionUID = 5527774996031187135L;
     
@@ -68,79 +67,79 @@ public class Worker extends Agent{
     private int step = 0;
     private MessageTemplate mt;
     
-    public GatheringBehaviour(Agent a) {
-      super(a);
+    public GatheringBehaviour(Agent a, long period) {
+      super(a, period);
     }
 
     @Override
-    public void action() {
+    protected void onTick() {
       switch(step) {
-        case 0: // Search hive in DF
-          AID[] hives;
-          DFAgentDescription template = new DFAgentDescription();
-          ServiceDescription sd = new ServiceDescription();
-          sd.setType(DFAConstants.GATHERING);
-          template.addServices(sd);
-          try {
-            DFAgentDescription[] result = DFService.search(myAgent, template);;
-            if(result != null && result.length > 0) {
-              hives = new AID[result.length];
-              System.out.println("Worker " + myAgent.getAID().getLocalName() + ": found " + hives.length + " hive(s)");
-              for(int i = 0; i < result.length; i++) {
-                hives[i] = result[i].getName();
-              }
-              hive = hives[0];
-              ++step;
+      case 0: // Search hive in DF
+        AID[] hives;
+        DFAgentDescription template = new DFAgentDescription();
+        ServiceDescription sd = new ServiceDescription();
+        sd.setType(DFAConstants.GATHERING);
+        template.addServices(sd);
+        try {
+          DFAgentDescription[] result = DFService.search(myAgent, template);;
+          if(result != null && result.length > 0) {
+            hives = new AID[result.length];
+            System.out.println("Worker " + myAgent.getAID().getLocalName() + ": found " + hives.length + " hive(s)");
+            for(int i = 0; i < result.length; i++) {
+              hives[i] = result[i].getName();
             }
-          } catch (FIPAException e) {
-            e.printStackTrace();
+            hive = hives[0];
+            ++step;
           }
-          break;
-        
-        case 1:  // send resource
-          boolean isFood = rand.nextBoolean();
-          ACLMessage request = new ACLMessage(ACLMessage.REQUEST);
-          request.addReceiver(hive);
-          request.setConversationId(DFAConstants.RESOURCE_EXCHANGE);
+        } catch (FIPAException e) {
+          e.printStackTrace();
+        }
+        break;
+      
+      case 1:  // send resource
+        boolean isFood = rand.nextBoolean();
+        ACLMessage request = new ACLMessage(ACLMessage.REQUEST);
+        request.addReceiver(hive);
+        request.setConversationId(DFAConstants.RESOURCE_EXCHANGE);
+        request.setReplyWith(DFAConstants.FOOD_EXCHANGE + System.currentTimeMillis());
+        if(isFood) {
           request.setReplyWith(DFAConstants.FOOD_EXCHANGE + System.currentTimeMillis());
-          if(isFood) {
-            request.setReplyWith(DFAConstants.FOOD_EXCHANGE + System.currentTimeMillis());
-            request.setContent(DFAConstants.FOOD_EXCHANGE);
+          request.setContent(DFAConstants.FOOD_EXCHANGE);
 
+        }
+        else {
+          request.setReplyWith(DFAConstants.MATERIALS_EXCHANGE + System.currentTimeMillis());
+          request.setContent(DFAConstants.MATERIALS_EXCHANGE);
+        }
+        // Prepare template to receive response
+        mt = MessageTemplate.and(MessageTemplate.MatchConversationId(DFAConstants.RESOURCE_EXCHANGE),
+            MessageTemplate.MatchInReplyTo(request.getReplyWith()));
+        myAgent.send(request);
+        step = 2;
+        break;
+        
+      case 2: // Receive hive response
+        ACLMessage reply = myAgent.receive(mt);
+        if(reply != null) {
+          if(reply.getPerformative() == ACLMessage.CONFIRM) {
+            System.out.println("worker " + getLocalName() + " succesfully sent item to hive");
           }
-          else {
-            request.setReplyWith(DFAConstants.MATERIALS_EXCHANGE + System.currentTimeMillis());
-            request.setContent(DFAConstants.MATERIALS_EXCHANGE);
-          }
-          // Prepare template to receive response
-          mt = MessageTemplate.and(MessageTemplate.MatchConversationId(DFAConstants.RESOURCE_EXCHANGE),
-              MessageTemplate.MatchInReplyTo(request.getReplyWith()));
-          myAgent.send(request);
-          step = 2;
-          break;
-          
-        case 2: // Receive hive response
-          ACLMessage reply = myAgent.receive(mt);
-          if(reply != null) {
-            if(reply.getPerformative() == ACLMessage.CONFIRM) {
-              System.out.println("wORKER " + getLocalName() + " succesfully sent materials to hive");
+          else if(reply.getPerformative() == ACLMessage.REFUSE) {
+            // wait some time
+            try {
+              Thread.sleep(HIVE_FULL_TIMEOUT);
+            } catch (InterruptedException e) {
+              e.printStackTrace();
             }
-            else if(reply.getPerformative() == ACLMessage.REFUSE) {
-              // wait some time
-              try {
-                Thread.sleep(HIVE_FULL_TIMEOUT);
-              } catch (InterruptedException e) {
-                e.printStackTrace();
-              }
-            }
-            // Restart gathering
-            step = 0;
           }
-          else {
-            block();
-          }
-          break;
-      }
+          // Restart gathering
+          step = 0;
+        }
+        else {
+          block();
+        }
+        break;
+    }
     }
     
   }

@@ -176,7 +176,7 @@ public class HiveManager extends Agent{
 
     @Override
     protected void onTick() {
-      ((HiveManager)myAgent).hive.updateCells();
+      ((HiveManager)myAgent).hive.updateCells(getContainerController());
     }
     
   }

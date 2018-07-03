@@ -26,6 +26,7 @@ public class DFAConstants {
   public final static int QUEEN_LARVA_DAILY_FOOD = 25;
   
   // Resources
+  public final static int GATHERING_TIMER = 5000;
   public final static String GATHERING = "gathering";
   public final static String RESOURCE_EXCHANGE = "resource exchange";
   public final static String FOOD_EXCHANGE = "food exchange";

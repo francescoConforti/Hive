@@ -8,6 +8,9 @@ import developmentStages.DevelopingBee;
 import developmentStages.Egg;
 import developmentStages.Larva;
 import developmentStages.Pupa;
+import jade.wrapper.AgentController;
+import jade.wrapper.ContainerController;
+import jade.wrapper.StaleProxyException;
 
 public class Hive {
   
@@ -20,6 +23,9 @@ public class Hive {
   private List<Cell> workerCells;
   private List<Cell> droneCells;
   private Cell queenCell;
+  private int workerNum;
+  private int droneNum;
+  private int queenNum;
   
   public Hive(int maxFood, int maxMaterials, int maxCells) {
     MAX_FOOD = maxFood;
@@ -28,6 +34,9 @@ public class Hive {
     workerCells = new ArrayList<>();
     droneCells = new ArrayList<>();
     queenCell = new Cell(null);
+    workerNum = 1;
+    droneNum = 1;
+    queenNum = 1;
   }
   
   public int getMaxNectar() {
@@ -81,17 +90,17 @@ public class Hive {
     droneCells.add(new Cell(new Egg()));
   }
   
-  public void updateCells() {
+  public void updateCells(ContainerController cc) {
     for(Cell c : workerCells) {
-      updateCell(c, "worker");
+      updateCell(c, "worker", cc);
     }
     for(Cell c : droneCells) {
-      updateCell(c, "drone");
+      updateCell(c, "drone", cc);
     }
-    updateCell(queenCell, "queen");
+    updateCell(queenCell, "queen", cc);
   }
   
-  private void updateCell(Cell cell, String type) {
+  private void updateCell(Cell cell, String type, ContainerController cc){
     DevelopingBee db = null;
     if(cell.hasResident()) {
       db = cell.getResident();
@@ -126,7 +135,41 @@ public class Hive {
           System.out.println("A larva became a pupa");
         }
         else {
-          // TODO: create new agent and destroy cell
+          AgentController ac = null;
+          switch(type) {
+          case "worker":
+            workerCells.remove(cell);
+            try {
+              ac = cc.createNewAgent("worker" + workerNum, "worker.Worker", null);
+              ++workerNum;
+            } catch (StaleProxyException e) {
+              e.printStackTrace();
+            }
+            break;
+          case "drone":
+            droneCells.remove(cell);  //  TODO: can't remove cell, change implementation
+            try {
+              ac = cc.createNewAgent("drone" + droneNum, "drone.Drone", null);
+              ++droneNum;
+            } catch (StaleProxyException e) {
+              e.printStackTrace();
+            }
+            break;
+          case "queen":
+            queenCell = null;
+            try {
+              ac = cc.createNewAgent("queen" + queenNum, "queen.Queen", null);
+              ++queenNum;
+            } catch (StaleProxyException e) {
+              e.printStackTrace();
+            }
+            break;
+          }
+          try {
+            ac.start();
+          } catch (StaleProxyException e) {
+            e.printStackTrace();
+          }
         }
       }
     }
