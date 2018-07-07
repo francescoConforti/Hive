@@ -17,7 +17,7 @@ public class Queen extends Agent{
 
   private static final long serialVersionUID = 2365835675346077157L;
   
-  private int MAX_SPERM = 15;
+  private int MAX_SPERM = 1;
   
   private int spermatheca;
   

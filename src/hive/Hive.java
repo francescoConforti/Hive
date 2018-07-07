@@ -1,6 +1,7 @@
 package hive;
 
 import java.util.ArrayList;
+import java.util.Iterator;
 import java.util.List;
 
 import commons.DFAConstants;
@@ -51,46 +52,79 @@ public class Hive {
     return MAX_CELLS;
   }
   
-  public boolean canGetMoreFood() {
+  public synchronized boolean canGetMoreFood() {
     return food < MAX_FOOD;
   }
   
-  public boolean canGetMoreMaterials() {
+  public synchronized boolean canGetMoreMaterials() {
     return materials < MAX_MATERIALS;
   }
   
-  public void increaseFood() {
+  public synchronized void increaseFood() {
     ++food;
   }
   
-  public void increaseMaterials() {
+  public synchronized void increaseMaterials() {
     ++materials;
   }
   
-  public boolean hasFreeCells() {
-    return workerCells.size() + droneCells.size() < MAX_CELLS;
-  }
-  
-  public List<Cell> getDroneCells(){
-    return droneCells;
-  }
-  
-  public List<Cell> getWorkerCells(){
-    return workerCells;
+  public synchronized boolean hasFreeCells() {
+    boolean freeWorker = false, freeDrone = false;
+    for (Iterator<Cell> iter = droneCells.iterator(); iter.hasNext() && !freeWorker; ) {
+      Cell c = iter.next();
+      if(!c.hasResident() && c.isClean()) {
+        c.setResident(new Egg());
+        freeWorker = true;
+      }
+    }
+    for (Iterator<Cell> iter = droneCells.iterator(); iter.hasNext() && !freeDrone; ) {
+      Cell c = iter.next();
+      if(!c.hasResident() && c.isClean()) {
+        freeDrone = true;
+      }
+    }
+    return ((freeDrone && freeWorker) || (workerCells.size() + droneCells.size() < MAX_CELLS));
   }
   
   /*
-   * An egg is always laid in a new Cell
-   */
-  public void addWorkerCell() {
-    workerCells.add(new Cell(new Egg()));
+  public synchronized List<Cell> getDroneCells(){
+    return droneCells;
   }
   
-  public void addDroneCell() {
-    droneCells.add(new Cell(new Egg()));
+  public synchronized List<Cell> getWorkerCells(){
+    return workerCells;
+  }
+  */
+  
+  public synchronized void addWorkerCell() {
+    boolean done = false;
+    for (Iterator<Cell> iter = workerCells.iterator(); iter.hasNext() && !done; ) {
+      Cell c = iter.next();
+      if(!c.hasResident() && c.isClean()) {
+        c.setResident(new Egg());
+        done = true;
+      }
+    }
+    if(!done) {
+      workerCells.add(new Cell(new Egg()));
+    }
   }
   
-  public void updateCells(ContainerController cc) {
+  public synchronized void addDroneCell() {
+    boolean done = false;
+    for (Iterator<Cell> iter = droneCells.iterator(); iter.hasNext() && !done; ) {
+      Cell c = iter.next();
+      if(!c.hasResident() && c.isClean()) {
+        c.setResident(new Egg());
+        done = true;
+      }
+    }
+    if(!done) {
+      droneCells.add(new Cell(new Egg()));
+    }
+  }
+  
+  public synchronized void updateCells(ContainerController cc) {
     for(Cell c : workerCells) {
       updateCell(c, "worker", cc);
     }
@@ -100,7 +134,7 @@ public class Hive {
     updateCell(queenCell, "queen", cc);
   }
   
-  private void updateCell(Cell cell, String type, ContainerController cc){
+  private synchronized void updateCell(Cell cell, String type, ContainerController cc){
     DevelopingBee db = null;
     if(cell.hasResident()) {
       db = cell.getResident();
@@ -138,7 +172,6 @@ public class Hive {
           AgentController ac = null;
           switch(type) {
           case "worker":
-            workerCells.remove(cell);
             try {
               ac = cc.createNewAgent("worker" + workerNum, "worker.Worker", null);
               ++workerNum;
@@ -147,7 +180,6 @@ public class Hive {
             }
             break;
           case "drone":
-            droneCells.remove(cell);  //  TODO: can't remove cell, change implementation
             try {
               ac = cc.createNewAgent("drone" + droneNum, "drone.Drone", null);
               ++droneNum;
@@ -165,6 +197,8 @@ public class Hive {
             }
             break;
           }
+          cell.setClean(false);
+          cell.setCapped(false);
           try {
             ac.start();
           } catch (StaleProxyException e) {
