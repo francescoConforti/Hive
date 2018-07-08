@@ -23,7 +23,7 @@ public class DFAConstants {
   // Larvae
   public final static int FEEDING_TIMER = 50;
   public final static int WORKER_LARVA_MAX_FOOD = 10;
-  public final static int DRONE_LARVA_MAX_FOOD = 1;
+  public final static int DRONE_LARVA_MAX_FOOD = 20;
   public final static int QUEEN_LARVA_MAX_FOOD = 25;
   public final static String FEEDING = "feeding";
   public final static String FEED_ACTIVITY = "feed activity";
@@ -36,4 +36,11 @@ public class DFAConstants {
   public final static String RESOURCE_EXCHANGE = "resource exchange";
   public final static String FOOD_EXCHANGE = "food exchange";
   public final static String MATERIALS_EXCHANGE = "materials exchange";
+  
+  // Building
+  public final static int BUILDING_TIMER = 50;
+  public final static String BUILDING = "building";
+  public final static String BUILD_ACTIVITY = "build activity";
+  public final static String CAPPING = "cap cell";
+  public final static String EXPANDING = "expand hive";
 }

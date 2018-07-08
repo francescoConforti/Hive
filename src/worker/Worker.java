@@ -32,7 +32,7 @@ public class Worker extends Agent{
     addBehaviour(new AgingBehaviour(this, DFAConstants.DAY_IN_MILLIS));
     addBehaviour(new GatheringBehaviour(this, DFAConstants.GATHERING_TIMER));
     addBehaviour(new FeedingBehaviour(this, DFAConstants.FEEDING_TIMER));
-    // TODO: cap cells and build hive
+    addBehaviour(new BuildingBehaviour(this, DFAConstants.BUILDING_TIMER));
   }
   
   // Periodically ages the bee
@@ -230,5 +230,109 @@ public class Worker extends Agent{
     }
     }
     
+  }
+
+  /**
+   *  This behaviour is used to cap larvae cells and expand hive
+   */
+  private class BuildingBehaviour extends TickerBehaviour{
+
+    private static final long serialVersionUID = 5527774996531187135L;
+    
+    private AID hive;
+    private int step = 0;
+    private MessageTemplate mt;
+    
+    public BuildingBehaviour(Agent a, long period) {
+      super(a, period);
+    }
+
+    @Override
+    protected void onTick() { // TODO: add cleaning
+      switch(step) {
+      case 0: // Search hive in DF
+        AID[] hives;
+        DFAgentDescription template = new DFAgentDescription();
+        ServiceDescription sd = new ServiceDescription();
+        sd.setType(DFAConstants.BUILDING);
+        template.addServices(sd);
+        try {
+          DFAgentDescription[] result = DFService.search(myAgent, template);;
+          if(result != null && result.length > 0) {
+            hives = new AID[result.length];
+            System.out.println("Worker " + myAgent.getAID().getLocalName() + ": found " + hives.length + " hive(s)");
+            for(int i = 0; i < result.length; i++) {
+              hives[i] = result[i].getName();
+            }
+            hive = hives[0];
+            ++step;
+          }
+        } catch (FIPAException e) {
+          e.printStackTrace();
+        }
+        break;
+      case 1:  // check for cell to cap
+        ACLMessage request = new ACLMessage(ACLMessage.REQUEST);
+        request.addReceiver(hive);
+        request.setConversationId(DFAConstants.BUILD_ACTIVITY);
+        request.setReplyWith(DFAConstants.BUILD_ACTIVITY + System.currentTimeMillis());
+        request.setContent(DFAConstants.CAPPING);
+        // Prepare template to receive response
+        mt = MessageTemplate.and(MessageTemplate.MatchConversationId(DFAConstants.BUILD_ACTIVITY),
+            MessageTemplate.MatchInReplyTo(request.getReplyWith()));
+        myAgent.send(request);
+        step = 2;
+        break;
+      case 2: // Receive hive response
+        ACLMessage reply = myAgent.receive(mt);
+        if(reply != null) {
+          if(reply.getPerformative() == ACLMessage.CONFIRM) {
+            System.out.println("worker " + getLocalName() + " succesfully capped a cell");
+            step = 0;
+          }
+          else if(reply.getPerformative() == ACLMessage.REFUSE) {
+            step = 3;
+          }
+        }
+        else {
+          block();
+        }
+        break;
+      case 3:  // expand hive
+        ACLMessage request2 = new ACLMessage(ACLMessage.REQUEST);
+        request2.addReceiver(hive);
+        request2.setConversationId(DFAConstants.BUILD_ACTIVITY);
+        request2.setReplyWith(DFAConstants.BUILD_ACTIVITY + System.currentTimeMillis());
+        request2.setContent(DFAConstants.EXPANDING);
+        // Prepare template to receive response
+        mt = MessageTemplate.and(MessageTemplate.MatchConversationId(DFAConstants.BUILD_ACTIVITY),
+            MessageTemplate.MatchInReplyTo(request2.getReplyWith()));
+        myAgent.send(request2);
+        step = 4;
+        break;
+      case 4: // Receive hive response
+        ACLMessage reply2 = myAgent.receive(mt);
+        if(reply2 != null) {
+          if(reply2.getPerformative() == ACLMessage.CONFIRM) {
+            System.out.println("worker " + getLocalName() + " succesfully expanded hive");
+          }
+          else if(reply2.getPerformative() == ACLMessage.REFUSE) {
+            try {
+              Thread.sleep(DFAConstants.DAY_IN_MILLIS);
+            } catch (InterruptedException e) {
+              doDelete(); // This happens when closing JADE
+            }
+          }
+        }
+        else {
+          block();
+        }
+        step = 0;
+        break;
+      default:
+        step = 0;
+        break;
+      }
+    }
   }
 }

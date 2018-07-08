@@ -54,6 +54,11 @@ public class HiveManager extends Agent{
     sd.setType(DFAConstants.FEEDING);
     sd.setName("Hive ready for feeding");
     dfd.addServices(sd);
+    // Advertise hive ready to receive building requests in DF
+    sd = new ServiceDescription();
+    sd.setType(DFAConstants.BUILDING);
+    sd.setName("Hive ready for building");
+    dfd.addServices(sd);
     try {
       DFService.register(this, dfd);
     } catch (FIPAException e) {
@@ -63,8 +68,10 @@ public class HiveManager extends Agent{
     addBehaviour(new EggReceiveBehaviour(this, DFAConstants.EGG_LAY_OR_RECEIVE_TIMER));
     addBehaviour(new ResourceReceiveBehaviour());
     addBehaviour(new EnableFeedingBehaviour());
+    addBehaviour(new EnableBuildingBehaviour());
     addBehaviour(new AgingBehaviour(this, DFAConstants.DAY_IN_MILLIS));
   }
+  
   /*
    * This behaviour receives resources from workers and sends them to the hive
    */
@@ -107,10 +114,53 @@ public class HiveManager extends Agent{
       else {
         block();
       }
+    }   
+  }
+  
+  private class EnableBuildingBehaviour extends CyclicBehaviour{
+
+    private static final long serialVersionUID = -863596333338272115L;
+    
+    @Override
+    public void action() {
+      String content = "";
+      ACLMessage reply;
+      MessageTemplate mt = MessageTemplate.MatchConversationId(DFAConstants.BUILD_ACTIVITY);
+      ACLMessage proposal = myAgent.receive(mt);   
+      if(proposal != null) {
+        reply = proposal.createReply();
+        reply.setContent(content);
+        if(proposal.getPerformative() == ACLMessage.REQUEST) {
+          if(proposal.getContent().equals(DFAConstants.CAPPING)) {
+            if(((HiveManager)myAgent).hive.capCell()) {
+              reply.setPerformative(ACLMessage.CONFIRM);
+            }
+            else {
+              reply.setPerformative(ACLMessage.REFUSE);
+            }
+          }
+          else if(proposal.getContent().equals(DFAConstants.EXPANDING)) {
+            if(((HiveManager)myAgent).hive.expand()) {
+              reply.setPerformative(ACLMessage.CONFIRM);
+            }
+            else {
+              reply.setPerformative(ACLMessage.REFUSE);
+            }
+          }
+          myAgent.send(reply);
+        }
+        else {
+          // Communicate refusal
+          reply = proposal.createReply();
+          reply.setPerformative(ACLMessage.REFUSE);
+          reply.setContent(myAgent.getLocalName());
+          myAgent.send(reply);
+        }
+      }
+      else {
+        block();
+      }
     }
-    
-    
-    
   }
   
   /**
@@ -155,7 +205,7 @@ public class HiveManager extends Agent{
       else {
         block();
       }
-    }  
+    }
   }
   
   /*

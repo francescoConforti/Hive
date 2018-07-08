@@ -15,9 +15,10 @@ import jade.wrapper.StaleProxyException;
 
 public class Hive {
   
-  private final int MAX_FOOD;
-  private final int MAX_MATERIALS;
-  private final int MAX_CELLS;
+  private int foodCapacity;
+  private int materialsCapacity;
+  private int maxCellNum;
+  private final int MATERIALS_TO_UPGRADE;
   
   private int food;
   private int materials;
@@ -29,9 +30,10 @@ public class Hive {
   private int queenNum;
   
   public Hive(int maxFood, int maxMaterials, int maxCells) {
-    MAX_FOOD = maxFood;
-    MAX_MATERIALS = maxMaterials;
-    MAX_CELLS = maxCells;
+    foodCapacity = maxFood;
+    materialsCapacity = maxMaterials;
+    maxCellNum = maxCells;
+    MATERIALS_TO_UPGRADE = 10;
     workerCells = new ArrayList<>();
     droneCells = new ArrayList<>();
     queenCell = new Cell(null);
@@ -41,23 +43,23 @@ public class Hive {
   }
   
   public int getMaxNectar() {
-    return MAX_FOOD;
+    return foodCapacity;
   }
   
   public int getMaxPollen() {
-    return MAX_MATERIALS;
+    return materialsCapacity;
   }
   
   public int getMaxCells() {
-    return MAX_CELLS;
+    return maxCellNum;
   }
   
   public synchronized boolean canGetMoreFood() {
-    return food < MAX_FOOD;
+    return food < foodCapacity;
   }
   
   public synchronized boolean canGetMoreMaterials() {
-    return materials < MAX_MATERIALS;
+    return materials < materialsCapacity;
   }
   
   public synchronized void increaseFood() {
@@ -83,7 +85,7 @@ public class Hive {
         freeDrone = true;
       }
     }
-    return ((freeDrone && freeWorker) || (workerCells.size() + droneCells.size() < MAX_CELLS));
+    return ((freeDrone && freeWorker) || (workerCells.size() + droneCells.size() < maxCellNum));
   }
   
   public synchronized void addWorkerCell() {
@@ -214,7 +216,7 @@ public class Hive {
     return doFeed(droneCells);
   }
   
-  private boolean doFeed(List<Cell> list) {
+  private synchronized boolean doFeed(List<Cell> list) {
     boolean feedingDone = false;
     for (Iterator<Cell> iter = list.iterator(); iter.hasNext() && !feedingDone; ) {
       Cell cell = iter.next();
@@ -230,6 +232,49 @@ public class Hive {
       }
     }
     return feedingDone;
+  }
+
+  public synchronized boolean capCell() {
+    boolean cellCapped = false;
+    for (Iterator<Cell> iter = workerCells.iterator(); iter.hasNext() && !cellCapped; ) {
+      Cell cell = iter.next();
+      if(cell.hasResident()) {
+        DevelopingBee resident = cell.getResident();
+        if(resident instanceof Larva) {
+          Larva larva = (Larva) resident;
+          if(larva.getFood() == larva.getMaxFood()) {
+            cell.setCapped(true);
+            cellCapped = true;
+          }
+        }
+      }
+    }
+    for (Iterator<Cell> iter = droneCells.iterator(); iter.hasNext() && !cellCapped; ) {
+      Cell cell = iter.next();
+      if(cell.hasResident()) {
+        DevelopingBee resident = cell.getResident();
+        if(resident instanceof Larva) {
+          Larva larva = (Larva) resident;
+          if(larva.getFood() == larva.getMaxFood()) {
+            cell.setCapped(true);
+            cellCapped = true;
+          }
+        }
+      }
+    }
+    return cellCapped;
+  }
+
+  public synchronized boolean expand() {
+    boolean expand = false;
+    if(materials >= MATERIALS_TO_UPGRADE) {
+      ++materialsCapacity;
+      ++foodCapacity;
+      ++maxCellNum;
+      materials = materials - MATERIALS_TO_UPGRADE;
+      expand = true;
+    }
+    return expand;
   }
   
 }
