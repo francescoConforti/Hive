@@ -86,16 +86,6 @@ public class Hive {
     return ((freeDrone && freeWorker) || (workerCells.size() + droneCells.size() < MAX_CELLS));
   }
   
-  /*
-  public synchronized List<Cell> getDroneCells(){
-    return droneCells;
-  }
-  
-  public synchronized List<Cell> getWorkerCells(){
-    return workerCells;
-  }
-  */
-  
   public synchronized void addWorkerCell() {
     boolean done = false;
     for (Iterator<Cell> iter = workerCells.iterator(); iter.hasNext() && !done; ) {
@@ -143,30 +133,37 @@ public class Hive {
         if(db instanceof Egg) {
           switch(type) {
           case "worker":
-            cell.setResident(new Larva(9, DFAConstants.WORKER_LARVA_DAILY_FOOD));
+            cell.setResident(new Larva(9, DFAConstants.WORKER_LARVA_MAX_FOOD));
             break;
           case "drone":
-            cell.setResident(new Larva(9, DFAConstants.DRONE_LARVA_DAILY_FOOD));
+            cell.setResident(new Larva(9, DFAConstants.DRONE_LARVA_MAX_FOOD));
             break;
           case "queen":
-            cell.setResident(new Larva(8, DFAConstants.QUEEN_LARVA_DAILY_FOOD));
+            cell.setResident(new Larva(8, DFAConstants.QUEEN_LARVA_MAX_FOOD));
             break;
           }
           System.out.println("An egg hatched into a larva");
         }
         else if (db instanceof Larva) {
-          switch(type) {
-          case "worker":
-            cell.setResident(new Pupa(11));
-            break;
-          case "drone":
-            cell.setResident(new Pupa(14));
-            break;
-          case "queen":
-            cell.setResident(new Pupa(8));
-            break;
+          if(((Larva)db).getFood() == ((Larva)db).getMaxFood() && cell.isCapped()) {  // Larva can become a pupa
+            switch(type) {
+            case "worker":
+              cell.setResident(new Pupa(11));
+              break;
+            case "drone":
+              cell.setResident(new Pupa(14));
+              break;
+            case "queen":
+              cell.setResident(new Pupa(8));
+              break;
+            }
+            System.out.println("A larva became a pupa");
           }
-          System.out.println("A larva became a pupa");
+          else {  // Larva dies
+            cell.setClean(false);
+            cell.setResident(null);
+            System.out.println("A larva died");
+          }
         }
         else {
           AgentController ac = null;
@@ -207,6 +204,32 @@ public class Hive {
         }
       }
     }
+  }
+
+  public boolean feedWorker() {
+    return doFeed(workerCells);
+  }
+
+  public boolean feedDrone() {
+    return doFeed(droneCells);
+  }
+  
+  private boolean doFeed(List<Cell> list) {
+    boolean feedingDone = false;
+    for (Iterator<Cell> iter = list.iterator(); iter.hasNext() && !feedingDone; ) {
+      Cell cell = iter.next();
+      if(cell.hasResident()) {
+        DevelopingBee resident = cell.getResident();
+        if(resident instanceof Larva) {
+          Larva larva = (Larva) resident;
+          if(larva.getFood() < larva.getMaxFood()) {
+            larva.feed();
+            feedingDone = true;
+          }
+        }
+      }
+    }
+    return feedingDone;
   }
   
 }

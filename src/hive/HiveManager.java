@@ -49,16 +49,21 @@ public class HiveManager extends Agent{
     sd.setType(DFAConstants.EGG);
     sd.setName("Hive ready for eggs");
     dfd.addServices(sd);
+    // Advertise hive ready to receive feeding requests in DF
+    sd = new ServiceDescription();
+    sd.setType(DFAConstants.FEEDING);
+    sd.setName("Hive ready for feeding");
+    dfd.addServices(sd);
     try {
       DFService.register(this, dfd);
     } catch (FIPAException e) {
       e.printStackTrace();
     }
   
-    
     addBehaviour(new EggReceiveBehaviour(this, DFAConstants.EGG_LAY_OR_RECEIVE_TIMER));
     addBehaviour(new ResourceReceiveBehaviour());
-    addBehaviour(new AgingBehaviour(this, DFAConstants.DAY_IN_MILLIS)); // For cell resident developement
+    addBehaviour(new EnableFeedingBehaviour());
+    addBehaviour(new AgingBehaviour(this, DFAConstants.DAY_IN_MILLIS));
   }
   /*
    * This behaviour receives resources from workers and sends them to the hive
@@ -106,6 +111,51 @@ public class HiveManager extends Agent{
     
     
     
+  }
+  
+  /**
+   *  This behaviour enables feeding of larvae by worker bees
+   */
+  private class EnableFeedingBehaviour extends CyclicBehaviour{
+
+    private static final long serialVersionUID = -863596333336842115L;
+    
+    @Override
+    public void action() {
+      String content = "";
+      ACLMessage reply;
+      MessageTemplate mt = MessageTemplate.MatchConversationId(DFAConstants.FEED_ACTIVITY);
+      ACLMessage proposal = myAgent.receive(mt);   
+      if(proposal != null) {
+        reply = proposal.createReply();
+        reply.setPerformative(ACLMessage.REFUSE);
+        reply.setContent(content);
+        if(proposal.getPerformative() == ACLMessage.REQUEST) {
+          if(proposal.getContent().equals(DFAConstants.FEED_WORKER)) {
+            if(((HiveManager)myAgent).hive.feedWorker()) {
+              reply.setPerformative(ACLMessage.CONFIRM);
+            }
+          }
+          else if(proposal.getContent().equals(DFAConstants.FEED_DRONE)) {
+            if(((HiveManager)myAgent).hive.feedDrone()) {
+              reply.setPerformative(ACLMessage.CONFIRM);
+            }
+          }
+          
+          myAgent.send(reply);
+        }
+        else {
+          // Communicate refusal
+          reply = proposal.createReply();
+          reply.setPerformative(ACLMessage.REFUSE);
+          reply.setContent(myAgent.getLocalName());
+          myAgent.send(reply);
+        }
+      }
+      else {
+        block();
+      }
+    }  
   }
   
   /*

@@ -3,14 +3,14 @@ package developmentStages;
 public class Larva implements DevelopingBee{
 
   private final int MAX_AGE;
-  private final int DAILY_FOOD_NEEDED;
+  private final int MAX_FOOD;
   
   private int age;
   private int food;
   
-  public Larva(int maxAge, int dailyFood) {
+  public Larva(int maxAge, int maxFood) {
     MAX_AGE = maxAge;
-    DAILY_FOOD_NEEDED = dailyFood;
+    MAX_FOOD = maxFood;
     age = 0;
     food = 0;
   }
@@ -34,12 +34,12 @@ public class Larva implements DevelopingBee{
     return food;
   }
 
-  public int getDailyFood() {
-    return DAILY_FOOD_NEEDED;
+  public int getMaxFood() {
+    return MAX_FOOD;
   }
 
-  public void feed(int foodAmount) {
-    food += foodAmount;
+  public void feed() {
+    ++food;
   }
 
 }
