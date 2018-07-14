@@ -138,6 +138,13 @@ public class HiveManager extends Agent{
             else {
               reply.setPerformative(ACLMessage.REFUSE);
             }
+          }else if(proposal.getContent().equals(DFAConstants.CLEANING)) {
+            if(((HiveManager)myAgent).hive.cleanCell()) {
+              reply.setPerformative(ACLMessage.CONFIRM);
+            }
+            else {
+              reply.setPerformative(ACLMessage.REFUSE);
+            }
           }
           else if(proposal.getContent().equals(DFAConstants.EXPANDING)) {
             if(((HiveManager)myAgent).hive.expand()) {

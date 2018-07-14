@@ -3,6 +3,7 @@ package hive;
 import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
+import java.util.Random;
 
 import commons.DFAConstants;
 import developmentStages.DevelopingBee;
@@ -236,22 +237,32 @@ public class Hive {
 
   public synchronized boolean capCell() {
     boolean cellCapped = false;
-    for (Iterator<Cell> iter = workerCells.iterator(); iter.hasNext() && !cellCapped; ) {
-      Cell cell = iter.next();
-      if(cell.hasResident()) {
-        DevelopingBee resident = cell.getResident();
-        if(resident instanceof Larva) {
-          Larva larva = (Larva) resident;
-          if(larva.getFood() == larva.getMaxFood()) {
-            cell.setCapped(true);
-            cellCapped = true;
+    boolean capDrone = new Random().nextBoolean();  // TODO: improve implementation here
+    if(queenCell.hasResident() && !queenCell.isCapped()) {
+      DevelopingBee db = queenCell.getResident();
+      if(db instanceof Larva && ((Larva)db).getFood() == ((Larva)db).getMaxFood()) {
+        queenCell.setCapped(true);
+        cellCapped = true;
+      }
+    }
+    if(!capDrone) {
+      for (Iterator<Cell> iter = workerCells.iterator(); iter.hasNext() && !cellCapped; ) {
+        Cell cell = iter.next();
+        if(cell.hasResident() ) {
+          DevelopingBee resident = cell.getResident();
+          if(resident instanceof Larva) {
+            Larva larva = (Larva) resident;
+            if(larva.getFood() == larva.getMaxFood()) {
+              cell.setCapped(true);
+              cellCapped = true;
+            }
           }
         }
       }
     }
     for (Iterator<Cell> iter = droneCells.iterator(); iter.hasNext() && !cellCapped; ) {
       Cell cell = iter.next();
-      if(cell.hasResident()) {
+      if(cell.hasResident() ) {
         DevelopingBee resident = cell.getResident();
         if(resident instanceof Larva) {
           Larva larva = (Larva) resident;
@@ -275,6 +286,29 @@ public class Hive {
       expand = true;
     }
     return expand;
+  }
+
+  public synchronized boolean cleanCell() {
+    boolean cleaned = false;
+    if(!queenCell.hasResident() && !queenCell.isClean()) {
+      queenCell.setClean(true);
+      cleaned = true;
+    }
+    for (Iterator<Cell> iter = workerCells.iterator(); iter.hasNext() && !cleaned; ) {
+      Cell cell = iter.next();
+      if(!cell.hasResident() && !cell.isClean()) {
+        cell.setClean(true);
+        cleaned = true;
+      }
+    }
+    for (Iterator<Cell> iter = droneCells.iterator(); iter.hasNext() && !cleaned; ) {
+      Cell cell = iter.next();
+      if(!cell.hasResident() && !cell.isClean()) {
+        cell.setClean(true);
+        cleaned = true;
+      }
+    }
+    return cleaned;
   }
   
 }

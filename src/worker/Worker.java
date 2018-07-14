@@ -186,7 +186,7 @@ public class Worker extends Agent{
         break;
       
       case 1:  // feed
-        boolean isWorker = rand.nextInt(3) == 0;
+        boolean isWorker = rand.nextBoolean();
         ACLMessage request = new ACLMessage(ACLMessage.REQUEST);
         request.addReceiver(hive);
         request.setConversationId(DFAConstants.FEED_ACTIVITY);
@@ -248,7 +248,7 @@ public class Worker extends Agent{
     }
 
     @Override
-    protected void onTick() { // TODO: add cleaning
+    protected void onTick() {
       switch(step) {
       case 0: // Search hive in DF
         AID[] hives;
@@ -272,16 +272,16 @@ public class Worker extends Agent{
         }
         break;
       case 1:  // check for cell to cap
-        ACLMessage request = new ACLMessage(ACLMessage.REQUEST);
-        request.addReceiver(hive);
-        request.setConversationId(DFAConstants.BUILD_ACTIVITY);
-        request.setReplyWith(DFAConstants.BUILD_ACTIVITY + System.currentTimeMillis());
-        request.setContent(DFAConstants.CAPPING);
+        ACLMessage capRequest = new ACLMessage(ACLMessage.REQUEST);
+        capRequest.addReceiver(hive);
+        capRequest.setConversationId(DFAConstants.BUILD_ACTIVITY);
+        capRequest.setReplyWith(DFAConstants.BUILD_ACTIVITY + System.currentTimeMillis());
+        capRequest.setContent(DFAConstants.CAPPING);
         // Prepare template to receive response
         mt = MessageTemplate.and(MessageTemplate.MatchConversationId(DFAConstants.BUILD_ACTIVITY),
-            MessageTemplate.MatchInReplyTo(request.getReplyWith()));
-        myAgent.send(request);
-        step = 2;
+            MessageTemplate.MatchInReplyTo(capRequest.getReplyWith()));
+        myAgent.send(capRequest);
+        ++step;
         break;
       case 2: // Receive hive response
         ACLMessage reply = myAgent.receive(mt);
@@ -291,32 +291,59 @@ public class Worker extends Agent{
             step = 0;
           }
           else if(reply.getPerformative() == ACLMessage.REFUSE) {
-            step = 3;
+            ++step;
           }
         }
         else {
           block();
         }
         break;
-      case 3:  // expand hive
-        ACLMessage request2 = new ACLMessage(ACLMessage.REQUEST);
-        request2.addReceiver(hive);
-        request2.setConversationId(DFAConstants.BUILD_ACTIVITY);
-        request2.setReplyWith(DFAConstants.BUILD_ACTIVITY + System.currentTimeMillis());
-        request2.setContent(DFAConstants.EXPANDING);
+      case 3:  // check for cell to clean
+        ACLMessage cleanRequest = new ACLMessage(ACLMessage.REQUEST);
+        cleanRequest.addReceiver(hive);
+        cleanRequest.setConversationId(DFAConstants.BUILD_ACTIVITY);
+        cleanRequest.setReplyWith(DFAConstants.BUILD_ACTIVITY + System.currentTimeMillis());
+        cleanRequest.setContent(DFAConstants.CLEANING);
         // Prepare template to receive response
         mt = MessageTemplate.and(MessageTemplate.MatchConversationId(DFAConstants.BUILD_ACTIVITY),
-            MessageTemplate.MatchInReplyTo(request2.getReplyWith()));
-        myAgent.send(request2);
-        step = 4;
+            MessageTemplate.MatchInReplyTo(cleanRequest.getReplyWith()));
+        myAgent.send(cleanRequest);
+        ++step;
         break;
       case 4: // Receive hive response
-        ACLMessage reply2 = myAgent.receive(mt);
-        if(reply2 != null) {
-          if(reply2.getPerformative() == ACLMessage.CONFIRM) {
+        ACLMessage cleanReply = myAgent.receive(mt);
+        if(cleanReply != null) {
+          if(cleanReply.getPerformative() == ACLMessage.CONFIRM) {
+            System.out.println("worker " + getLocalName() + " succesfully cleaned a cell");
+            step = 0;
+          }
+          else if(cleanReply.getPerformative() == ACLMessage.REFUSE) {
+            ++step;
+          }
+        }
+        else {
+          block();
+        }
+        break;
+      case 5:  // expand hive
+        ACLMessage expandRequest = new ACLMessage(ACLMessage.REQUEST);
+        expandRequest.addReceiver(hive);
+        expandRequest.setConversationId(DFAConstants.BUILD_ACTIVITY);
+        expandRequest.setReplyWith(DFAConstants.BUILD_ACTIVITY + System.currentTimeMillis());
+        expandRequest.setContent(DFAConstants.EXPANDING);
+        // Prepare template to receive response
+        mt = MessageTemplate.and(MessageTemplate.MatchConversationId(DFAConstants.BUILD_ACTIVITY),
+            MessageTemplate.MatchInReplyTo(expandRequest.getReplyWith()));
+        myAgent.send(expandRequest);
+        ++step;
+        break;
+      case 6: // Receive hive response
+        ACLMessage expandReply = myAgent.receive(mt);
+        if(expandReply != null) {
+          if(expandReply.getPerformative() == ACLMessage.CONFIRM) {
             System.out.println("worker " + getLocalName() + " succesfully expanded hive");
           }
-          else if(reply2.getPerformative() == ACLMessage.REFUSE) {
+          else if(expandReply.getPerformative() == ACLMessage.REFUSE) {
             try {
               Thread.sleep(DFAConstants.DAY_IN_MILLIS);
             } catch (InterruptedException e) {
